@@ -1,4 +1,9 @@
+#Folders
+Downloads
 .idea
 target
+
+#Files
 *.iml
 *.class
+*.log
