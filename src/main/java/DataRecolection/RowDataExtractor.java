@@ -1,6 +1,8 @@
 package DataRecolection;
 import org.openqa.selenium.*;
 
+import java.io.File;
+
 public class RowDataExtractor implements Runnable{
 
     private WebDriver driver;
@@ -20,6 +22,8 @@ public class RowDataExtractor implements Runnable{
         }
 
         final String url = this.driver.findElement(By.xpath("//div[@id='Res']/table/tbody/tr[" + this.rowId + "]/td[" + 6 + "]/a")).getAttribute("href");
-        FileManager.downloadFile(Integer.toString(this.rowId), url);
+        File decretoDownloaded = FileManager.downloadFile("temp-downloads", Integer.toString(this.rowId), url);
+        OCRScanner scanner = new OCRScanner(Integer.toString(this.rowId));
+        scanner.scanDocument(getClass().getClassLoader());
     }
 }

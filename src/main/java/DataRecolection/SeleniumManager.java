@@ -1,7 +1,9 @@
 package DataRecolection;
 
 import org.openqa.selenium.*;
+import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
+import org.openqa.selenium.safari.SafariDriver;
 import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
@@ -16,9 +18,9 @@ public class SeleniumManager {
     private WebDriver driver;
     private WebDriverWait driverWaitTime;
 
-    public SeleniumManager(String driverName, String driverPath, long time, String decretosPage){
-        System.setProperty(driverName, driverPath);
-        this.instantiateWebDriver();
+    public SeleniumManager(BrowserDriver browser, long time, String decretosPage){
+
+        this.instantiateWebDriver(browser);
         this.driverWaitTime = new WebDriverWait(this.driver, time);
         this.driver.get(decretosPage);
     }
@@ -29,8 +31,31 @@ public class SeleniumManager {
     }
 
     //To implement
-    private void instantiateWebDriver(){
-        this.driver = new FirefoxDriver();
+    private void instantiateWebDriver(BrowserDriver browser){
+
+        String driverPath = getClass().getClassLoader().getResource("drivers").getPath();
+        String os = System.getProperty("os.name");
+
+        switch (browser){
+            case FIREFOX:
+                String arch = System.getProperty("sun.arch.data.model");
+                driverPath += "/firefox/" + os.toLowerCase() + "/x" + arch + "/geckodriver";
+                System.setProperty("webdriver.gecko.driver", driverPath);
+                this.driver = new FirefoxDriver();
+                break;
+
+            case CHROME:
+                driverPath += "/chrome/" + os.toLowerCase() + "/chromedriver";
+                System.setProperty("webdriver.chrome.driver", driverPath);
+                this.driver = new ChromeDriver();
+                break;
+
+            case SAFARI:
+                this.driver = new SafariDriver();
+                break;
+        }
+
+
     }
 
     public void makeQueryToDOM(String sinceDate, String toDate){
@@ -99,7 +124,8 @@ public class SeleniumManager {
     }
 
     public static void main (String [] args){
-        final SeleniumManager downloader = new SeleniumManager("webdriver.gecko.driver", "lib/geckodriver", 100, "http://gestion.chaco.gov.ar/public/index");
+
+        final SeleniumManager downloader = new SeleniumManager(BrowserDriver.FIREFOX, 100, "http://gestion.chaco.gov.ar/public/index");
         final LocalDateTime start = LocalDateTime.now();
 
         try{
