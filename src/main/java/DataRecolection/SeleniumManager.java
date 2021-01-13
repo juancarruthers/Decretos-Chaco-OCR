@@ -8,6 +8,7 @@ import org.openqa.selenium.support.ui.ExpectedConditions;
 import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -95,7 +96,7 @@ public class SeleniumManager {
             final ExecutorService pool = Executors.newFixedThreadPool(numberRows);
 
 
-            for (int i = 2; i <= (numberRows + 1); i++) {
+            for (int i = (numberRows + 1); i >= 2; i--) {
                 pool.submit(new RowDataExtractor(this.driver, i));
             }
 
@@ -128,25 +129,34 @@ public class SeleniumManager {
         final SeleniumManager downloader = new SeleniumManager(BrowserDriver.FIREFOX, 100, "http://gestion.chaco.gov.ar/public/index");
         final LocalDateTime start = LocalDateTime.now();
 
+        final String toDate = DateTimeFormatter.ofPattern("dd/MM/yyyy").format(LocalDateTime.now().minusDays(1));
+        final String sinceDate = DecretosChacoDatabase.getLastDate();
+
         try{
 
-            downloader.makeQueryToDOM("2020-12-28","2020-12-31");
+            downloader.makeQueryToDOM(sinceDate, toDate);
             final int numberOfPages = downloader.getNumberOfPages();
             final JavascriptExecutor js = (JavascriptExecutor) downloader.getDriver();
+            js.executeScript("getDecsFchTem(" + numberOfPages + ")");
+            downloader.waitTableBuffering("Página " + numberOfPages + " de " + numberOfPages);
 
-            for(int i = 2; i <= numberOfPages; i++) {
+            for(int i = numberOfPages - 1; i >= 1; i--) {
                 downloader.extractDataFromDOMTable();
                 js.executeScript("getDecsFchTem(" + i + ")");
                 downloader.waitTableBuffering("Página " + i + " de " + numberOfPages);
             }
-            downloader.getDriver().quit();
 
-            System.out.println("\n\nStart Time: " + start + " - End Time: " + LocalDateTime.now());
 
         }catch (WebDriverException e){
             System.err.println(e.getMessage());
-            downloader.getDriver().quit();
         }
+
+        FileManager fileManager = new FileManager();
+        fileManager.deleteResource("");
+        downloader.getDriver().quit();
+        DecretosChacoDatabase.updateLastDate(toDate);
+        DecretosChacoDatabase.close();
+        System.out.println("\n\nStart Time: " + start + " - End Time: " + LocalDateTime.now());
     }
 
 

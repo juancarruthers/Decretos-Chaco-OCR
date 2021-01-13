@@ -1,7 +1,8 @@
 package DataRecolection;
 import org.openqa.selenium.*;
 
-import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 public class RowDataExtractor implements Runnable{
 
@@ -16,14 +17,21 @@ public class RowDataExtractor implements Runnable{
 
     @Override
     public void run() {
-
+        List<String> decretoInfo = new ArrayList<>();
         for (int i = 1; i <= 5; i++){
-            System.out.print("Fila: " + this.rowId + "/Col: " + i + " ->> " + this.driver.findElement(By.xpath("//div[@id='Res']/table/tbody/tr[" + this.rowId + "]/td[" + i + "]")).getText() + "\t");
+            String value = this.driver.findElement(By.xpath("//div[@id='Res']/table/tbody/tr[" + this.rowId + "]/td[" + i + "]")).getText();
+            decretoInfo.add(value);
         }
 
         final String url = this.driver.findElement(By.xpath("//div[@id='Res']/table/tbody/tr[" + this.rowId + "]/td[" + 6 + "]/a")).getAttribute("href");
-        File decretoDownloaded = FileManager.downloadFile("temp-downloads", Integer.toString(this.rowId), url);
-        OCRScanner scanner = new OCRScanner(Integer.toString(this.rowId));
-        scanner.scanDocument(getClass().getClassLoader());
+        decretoInfo.add(url);
+
+        FileManager fileManager = new FileManager();
+        fileManager.downloadFile(Integer.toString(this.rowId), url);
+
+        OCRScanner scanner = new OCRScanner(getClass().getClassLoader().getResource(".").getPath());
+        List<String> decretoPages = scanner.scanPDFDocument(getClass().getClassLoader().getResource("temp-downloads/").getPath() + this.rowId + ".pdf");
+
+        DecretosChacoDatabase.insertNewDecreto(decretoInfo, decretoPages);
     }
 }

@@ -47,6 +47,13 @@
             <version>1.7.30</version>
         </dependency>
 
+        <!--MongoDB Dependencies-->
+        <dependency>
+            <groupId>org.mongodb</groupId>
+            <artifactId>mongodb-driver-sync</artifactId>
+            <version>4.1.1</version>
+        </dependency>
+
     </dependencies>
 
     <build>
