@@ -1,0 +1,5 @@
+WINDOWS 10: 2021/01/19
+
+java 11.0.9 2020-10-20 LTS
+ghostscript 9.53.3
+tesseract-ocr v4.1.0.20190314

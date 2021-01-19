@@ -43,18 +43,23 @@ public class SeleniumManager {
 
         FileManager fileManager = new FileManager();
         String driverPath = fileManager.getResourcesPath("drivers/");
-        String os = System.getProperty("os.name");
+        String os = System.getProperty("os.name").toLowerCase();
+        String fileExtension = "";
+        if (os.contains("win")){
+            os="win";
+            fileExtension = ".exe";
+        }
 
         switch (this.browser){
             case FIREFOX:
                 String arch = System.getProperty("sun.arch.data.model");
-                driverPath += "firefox/" + os.toLowerCase() + "/x" + arch + "/geckodriver";
+                driverPath += "firefox/" + os.toLowerCase() + "/x" + arch + "/geckodriver" + fileExtension;
                 System.setProperty("webdriver.gecko.driver", driverPath);
                 this.driver = new FirefoxDriver();
                 break;
 
             case CHROME:
-                driverPath += "chrome/" + os.toLowerCase() + "/chromedriver";
+                driverPath += "chrome/" + os.toLowerCase() + "/chromedriver" + fileExtension;
                 System.setProperty("webdriver.chrome.driver", driverPath);
                 this.driver = new ChromeDriver();
                 break;

@@ -26,7 +26,9 @@ public class OCRScanner {
         this.scanner = new Tesseract();
 
         try {
-
+            if(System.getProperty("os.name").toLowerCase().contains("win")){
+                tesseractResourcesPath = tesseractResourcesPath.substring(1);
+            }
             PropertyConfigurator.configure(tesseractResourcesPath + "log4j.properties"); // sets properties file for log4j
             this.scanner.setDatapath(tesseractResourcesPath + "tessdata");
             this.scanner.setLanguage("spa");
@@ -78,7 +80,7 @@ public class OCRScanner {
 
             //Saving each page as an individual document
             int i = 1;
-            final int fileExtensionIndex = documentPath.indexOf('.');
+            final int fileExtensionIndex = documentPath.indexOf(".pdf");
             final String filePathWithoutExtension = documentPath.substring(0, fileExtensionIndex);
 
             while (iterator.hasNext()) {
