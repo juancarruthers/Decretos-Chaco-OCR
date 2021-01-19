@@ -1,5 +1,6 @@
 package DataRecolection;
 
+import org.apache.commons.io.input.BrokenInputStream;
 import org.openqa.selenium.*;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
@@ -9,6 +10,8 @@ import org.openqa.selenium.support.ui.WebDriverWait;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -18,35 +21,40 @@ public class SeleniumManager {
 
     private WebDriver driver;
     private WebDriverWait driverWaitTime;
+    private BrowserDriver browser;
+    private float cpuUtilization;
 
-    public SeleniumManager(BrowserDriver browser, long time, String decretosPage){
+    private SeleniumManager(BrowserDriver browser, String cpuUtilization, long webDriverWaitTime, String decretosPage){
 
-        this.instantiateWebDriver(browser);
-        this.driverWaitTime = new WebDriverWait(this.driver, time);
+        this.browser = browser;
+        this.cpuUtilization = Float.parseFloat(cpuUtilization) / 100;
+        this.instantiateWebDriver();
+        this.driverWaitTime = new WebDriverWait(this.driver, webDriverWaitTime);
         this.driver.get(decretosPage);
     }
 
     //GETTERS
-    public WebDriver getDriver(){
+    protected WebDriver getDriver(){
         return this.driver;
     }
 
     //To implement
-    private void instantiateWebDriver(BrowserDriver browser){
+    private void instantiateWebDriver(){
 
-        String driverPath = getClass().getClassLoader().getResource("drivers").getPath();
+        FileManager fileManager = new FileManager();
+        String driverPath = fileManager.getResourcesPath("drivers/");
         String os = System.getProperty("os.name");
 
-        switch (browser){
+        switch (this.browser){
             case FIREFOX:
                 String arch = System.getProperty("sun.arch.data.model");
-                driverPath += "/firefox/" + os.toLowerCase() + "/x" + arch + "/geckodriver";
+                driverPath += "firefox/" + os.toLowerCase() + "/x" + arch + "/geckodriver";
                 System.setProperty("webdriver.gecko.driver", driverPath);
                 this.driver = new FirefoxDriver();
                 break;
 
             case CHROME:
-                driverPath += "/chrome/" + os.toLowerCase() + "/chromedriver";
+                driverPath += "chrome/" + os.toLowerCase() + "/chromedriver";
                 System.setProperty("webdriver.chrome.driver", driverPath);
                 this.driver = new ChromeDriver();
                 break;
@@ -59,7 +67,7 @@ public class SeleniumManager {
 
     }
 
-    public void makeQueryToDOM(String sinceDate, String toDate){
+    private void makeQueryToDOM(String sinceDate, String toDate){
 
         try {
 
@@ -89,11 +97,12 @@ public class SeleniumManager {
     }
 
     //DATABASE OPERATIONS ------------->>PARALLELIZABLE
-    public void extractDataFromDOMTable(){
+    private void extractDataFromDOMTable(){
         try {
             final List <WebElement> rows = this.driver.findElements(By.xpath(".//div[@id='Res']/table/tbody/tr/td[1]"));
             final int numberRows = rows.size();
-            final ExecutorService pool = Executors.newFixedThreadPool(numberRows);
+            final int numOfCores = Runtime.getRuntime().availableProcessors();
+            final ExecutorService pool = Executors.newFixedThreadPool((int) (numOfCores * this.cpuUtilization));
 
 
             for (int i = (numberRows + 1); i >= 2; i--) {
@@ -109,14 +118,14 @@ public class SeleniumManager {
 
     }
 
-    public void waitTableBuffering(String legend){
+    private void waitTableBuffering(String legend){
 
         //Wait Until Table is buffered
         final WebElement res = this.driver.findElement(By.id("Res"));
         this.driverWaitTime.until(ExpectedConditions.textToBePresentInElement(res, legend));
     }
 
-    public int getNumberOfPages(){
+    private int getNumberOfPages(){
 
         WebElement paginatorLegend = this.getDriver().findElement(By.xpath("//div[@id='Res']/div/font/table/tbody/tr[2]/td"));
         final int indexOfLastNumber = paginatorLegend.getText().indexOf('e') + 2;
@@ -124,9 +133,15 @@ public class SeleniumManager {
 
     }
 
-    public static void main (String [] args){
+    public static void recolectData() throws WebDriverException{
 
-        final SeleniumManager downloader = new SeleniumManager(BrowserDriver.FIREFOX, 100, "http://gestion.chaco.gov.ar/public/index");
+        final FileManager fileManager = new FileManager();
+        List<String> programProperties = new ArrayList<>();
+        programProperties.add("CPU-Usage-Percentage");
+        programProperties.add("Browser");
+        HashMap<String, String> propertiesValues = fileManager.getPropValues("program.properties" , programProperties);
+
+        final SeleniumManager downloader = new SeleniumManager(BrowserDriver.valueOf(propertiesValues.get("Browser")), propertiesValues.get("CPU-Usage-Percentage"), 300, "http://gestion.chaco.gov.ar/public/index");
         final LocalDateTime start = LocalDateTime.now();
 
         final String toDate = DateTimeFormatter.ofPattern("dd/MM/yyyy").format(LocalDateTime.now().minusDays(1));
@@ -137,24 +152,22 @@ public class SeleniumManager {
             downloader.makeQueryToDOM(sinceDate, toDate);
             final int numberOfPages = downloader.getNumberOfPages();
             final JavascriptExecutor js = (JavascriptExecutor) downloader.getDriver();
-            js.executeScript("getDecsFchTem(" + numberOfPages + ")");
-            downloader.waitTableBuffering("Página " + numberOfPages + " de " + numberOfPages);
 
-            for(int i = numberOfPages - 1; i >= 1; i--) {
-                downloader.extractDataFromDOMTable();
+            for(int i = numberOfPages; i >= 1; i--) {
                 js.executeScript("getDecsFchTem(" + i + ")");
                 downloader.waitTableBuffering("Página " + i + " de " + numberOfPages);
+                downloader.extractDataFromDOMTable();
             }
 
 
         }catch (WebDriverException e){
             System.err.println(e.getMessage());
+            downloader.getDriver().quit();
+            throw new WebDriverException("error 1: server disconnected");
         }
 
-        FileManager fileManager = new FileManager();
-        fileManager.deleteResource("");
+        fileManager.deleteResource("temp-downloads");
         downloader.getDriver().quit();
-        DecretosChacoDatabase.updateLastDate(toDate);
         DecretosChacoDatabase.close();
         System.out.println("\n\nStart Time: " + start + " - End Time: " + LocalDateTime.now());
     }

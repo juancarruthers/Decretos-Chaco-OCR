@@ -1,5 +1,6 @@
 package DataRecolection;
 
+import jdk.jfr.Description;
 import org.apache.commons.io.FileUtils;
 
 import java.io.*;
@@ -11,17 +12,18 @@ public class FileManager{
     private String resourcesPath;
 
     public FileManager(){
-        this.resourcesPath = getClass().getResource("..").getPath();
+        this.resourcesPath = getClass().getResource("..").getPath() + "../resources";
     }
 
-    public String getResourcesPath() {
-        return resourcesPath;
+    //Include dash "/" at the end of a folder
+    public String getResourcesPath(String name) {
+        return resourcesPath + "/" + name;
     }
 
     public void downloadFile (String fileName, String fileUrl){
 
         try {
-            final File directory = new File(this.resourcesPath + "temp-downloads");
+            final File directory = new File(this.getResourcesPath("temp-downloads"));
             //Check Downloads folder exists
             if (!directory.exists()){
                 directory.mkdir();
@@ -45,7 +47,7 @@ public class FileManager{
 
     public void deleteResource (String name){
 
-        final File resource = new File(this.resourcesPath + name);
+        final File resource = new File(this.getResourcesPath(name));
 
         if (resource.exists()) {
             FileUtils.deleteQuietly(resource);
@@ -53,14 +55,14 @@ public class FileManager{
 
     }
 
-    public HashMap<String, String> getPropValues(String propertiesFilePath, List<String> propertiesKeys){
+    public HashMap<String, String> getPropValues(String propertiesFileName, List<String> propertiesKeys){
 
         Properties prop = new Properties();
         HashMap<String, String> properties = new HashMap();
 
         try {
 
-            InputStream inputStream = new FileInputStream(propertiesFilePath);
+            InputStream inputStream = new FileInputStream(this.getResourcesPath(propertiesFileName));
             if (inputStream != null) {
                 prop.load(inputStream);
                 // get the properties values
@@ -69,7 +71,7 @@ public class FileManager{
                 }
 
             }else{
-                throw new FileNotFoundException("Properties File '" + propertiesFilePath + "' Not Found!");
+                throw new FileNotFoundException("Properties File '" + this.getResourcesPath(propertiesFileName) + "' Not Found!");
             }
 
             inputStream.close();
@@ -79,6 +81,35 @@ public class FileManager{
         }
 
         return properties;
+
+    }
+
+    public void writePropValues(String propertiesFileName, HashMap<String, String> propertiesKeys){
+
+        Properties properties = new Properties();
+
+        try {
+
+            InputStream inputStream = new FileInputStream(this.getResourcesPath(propertiesFileName));
+            if (inputStream != null) {
+                properties.load(inputStream);
+                // get the properties values
+                for (Map.Entry<String, String> propertyEntry: propertiesKeys.entrySet()) {
+                    properties.setProperty(propertyEntry.getKey(), propertyEntry.getValue());
+
+                }
+                properties.store(new FileOutputStream(this.getResourcesPath(propertiesFileName)), null);
+
+            }else{
+                throw new FileNotFoundException("Properties File '" + this.getResourcesPath(propertiesFileName) + "' Not Found!");
+            }
+
+            inputStream.close();
+
+        } catch (IOException e) {
+            System.out.println(e.getMessage());
+        }
+
 
     }
 

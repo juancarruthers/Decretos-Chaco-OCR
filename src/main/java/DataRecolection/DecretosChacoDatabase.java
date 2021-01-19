@@ -9,76 +9,84 @@ final class DecretosChacoDatabase {
 
     private static final MongoClient mongoClient = MongoClients.create("mongodb+srv://"+ getCredentials().get("mongodb-user") +":"+ getCredentials().get("mongodb-password") +"@"+ getCredentials().get("mongodb-cluster") +"/"+ getCredentials().get("mongodb-db") +"?retryWrites=true&w=majority");
     private static final MongoDatabase database = mongoClient.getDatabase("Decretos-Chaco");
+    private Document decretoInfo;
+    private List<Document> decretoPages;
 
-    protected static void insertNewDecreto(List<String> decretoInfo, List<String> decretoPages) {
-        final ClientSession clientSession = mongoClient.startSession();
-        TransactionOptions txnOptions = TransactionOptions.builder()
-                .readPreference(ReadPreference.primary())
-                .readConcern(ReadConcern.LOCAL)
-                .writeConcern(WriteConcern.MAJORITY)
-                .build();
+    protected DecretosChacoDatabase(List<String> decretoInfo, List<String> decretoPages){
+        this.createDocumentDecretoInfo(decretoInfo);
+        this.createDocumentDecretoPages(decretoPages);
+    }
 
-        TransactionBody txnBody = new TransactionBody<String>() {
-            public String execute() {
+    private void createDocumentDecretoInfo(List<String> decretoInfo){
+        this.decretoInfo = new Document();
+        this.decretoInfo.append("_id", decretoInfo.get(1) + decretoInfo.get(2));
+        this.decretoInfo.append("gestion", decretoInfo.get(0));
+        this.decretoInfo.append("anio", decretoInfo.get(1));
+        this.decretoInfo.append("decreto", decretoInfo.get(2));
+        this.decretoInfo.append("fecha", decretoInfo.get(3));
+        this.decretoInfo.append("tema", decretoInfo.get(4));
+        this.decretoInfo.append("enlace", decretoInfo.get(5));
+    }
 
-                if (checkDecretoInserted(decretoInfo.get(1) + decretoInfo.get(2))) {
-                    insertDecretoInfo(decretoInfo);
-                    insertDecretoPages(decretoInfo, decretoPages);
-                    updateLastDate(decretoInfo.get(3));
-                }
-                return "Inserted into collections in different databases";
-            }
-        };
-
-        try {
-            clientSession.withTransaction(txnBody, txnOptions);
-        } catch (RuntimeException e) {
-            System.out.println(e.getMessage());
-        } finally {
-            clientSession.close();
+    private void createDocumentDecretoPages(List<String> decretoPages){
+        this.decretoPages = new ArrayList<>();
+        int i = 1;
+        for (String decretoPage : decretoPages) {
+            Document document = new Document();
+            document.append("_id", (String) decretoInfo.get("_id") + i);
+            document.append("id-decreto-info", decretoInfo.get("_id"));
+            document.append("numero-pagina", i);
+            document.append("contenido-pagina", decretoPage);
+            this.decretoPages.add(document);
+            i++;
         }
     }
 
-    private static void insertDecretoInfo(List<String> decretoInfo) {
+    protected void insertDecretoInfo() throws MongoException{
 
         try {
 
             MongoCollection collection = database.getCollection("Decreto-Info");
 
             //insertion
-            Document document = new Document();
-            document.append("_id", decretoInfo.get(1) + decretoInfo.get(2));
-            document.append("gestion", decretoInfo.get(0));
-            document.append("anio", decretoInfo.get(1));
-            document.append("decreto", decretoInfo.get(2));
-            document.append("fecha", decretoInfo.get(3));
-            document.append("tema", decretoInfo.get(4));
-            document.append("enlace", decretoInfo.get(5));
-            collection.insertOne(document);
+            collection.insertOne(this.decretoInfo);
+
         } catch (MongoException e) {
             System.out.println(e.getMessage());
+            throw e;
         }
 
     }
 
-    private static void insertDecretoPages(List<String> decretoInfo, List<String> decretoPages) {
+    protected void deleteDecretoInfo(){
+
+        try {
+
+            MongoCollection collection = database.getCollection("Decreto-Info");
+
+            //insertion
+            collection.deleteOne(this.decretoInfo);
+
+        } catch (MongoException e) {
+            System.out.println(e.getMessage());
+
+        }
+
+    }
+
+    protected void insertDecretoPages() throws MongoException{
 
         try {
 
             MongoCollection collection = database.getCollection("Decreto-Pages");
 
             //insertion
-            Document document = new Document();
-            int i = 1;
-            for (String decretoPage : decretoPages) {
-                document.append("_id", decretoInfo.get(1) + decretoInfo.get(2) + i);
-                document.append("id-decreto-info", decretoInfo.get(1) + decretoInfo.get(2));
-                document.append("numero-pagina", i);
-                document.append("contenido-pagina", decretoPage);
-                collection.insertOne(document);
-            }
+            collection.insertMany(this.decretoPages);
+
         } catch (MongoException e) {
             System.out.println(e.getMessage());
+            this.deleteDecretoInfo();
+            throw e;
         }
     }
 
@@ -104,7 +112,7 @@ final class DecretosChacoDatabase {
         }
     }
 
-    private static boolean checkDecretoInserted(String idDecreto) {
+    protected static boolean checkDecretoInserted(String idDecreto) {
         try {
 
             MongoCollection collection = database.getCollection("Decreto-Info");
@@ -114,7 +122,7 @@ final class DecretosChacoDatabase {
 
             Document result = (Document) collection.find(query).first();
 
-            return result == null;
+            return result != null;
 
         } catch (MongoException e) {
             System.out.println(e.getMessage());
@@ -151,7 +159,7 @@ final class DecretosChacoDatabase {
         listOfProperties.add("mongodb-cluster");
         listOfProperties.add("mongodb-db");
 
-        return fileMan.getPropValues(fileMan.getResourcesPath() + "mongodb.credentials", listOfProperties);
+        return fileMan.getPropValues("mongodb.credentials", listOfProperties);
 
     }
 }

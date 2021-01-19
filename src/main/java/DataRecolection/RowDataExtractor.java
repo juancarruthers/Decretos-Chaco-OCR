@@ -1,4 +1,5 @@
 package DataRecolection;
+import com.mongodb.MongoException;
 import org.openqa.selenium.*;
 
 import java.util.ArrayList;
@@ -23,15 +24,29 @@ public class RowDataExtractor implements Runnable{
             decretoInfo.add(value);
         }
 
-        final String url = this.driver.findElement(By.xpath("//div[@id='Res']/table/tbody/tr[" + this.rowId + "]/td[" + 6 + "]/a")).getAttribute("href");
-        decretoInfo.add(url);
+        if (!DecretosChacoDatabase.checkDecretoInserted(decretoInfo.get(1) + decretoInfo.get(2))) {
 
-        FileManager fileManager = new FileManager();
-        fileManager.downloadFile(Integer.toString(this.rowId), url);
+            final String url = this.driver.findElement(By.xpath("//div[@id='Res']/table/tbody/tr[" + this.rowId + "]/td[" + 6 + "]/a")).getAttribute("href");
+            decretoInfo.add(url);
 
-        OCRScanner scanner = new OCRScanner(getClass().getClassLoader().getResource(".").getPath());
-        List<String> decretoPages = scanner.scanPDFDocument(getClass().getClassLoader().getResource("temp-downloads/").getPath() + this.rowId + ".pdf");
+            FileManager fileManager = new FileManager();
+            fileManager.downloadFile(Integer.toString(this.rowId), url);
 
-        DecretosChacoDatabase.insertNewDecreto(decretoInfo, decretoPages);
+            OCRScanner scanner = new OCRScanner(fileManager.getResourcesPath(""));
+            List<String> decretoPages = scanner.scanPDFDocument(fileManager.getResourcesPath("temp-downloads/") +  + this.rowId + ".pdf");
+
+            try {
+
+                DecretosChacoDatabase insertData = new DecretosChacoDatabase(decretoInfo, decretoPages);
+                insertData.insertDecretoInfo();
+                insertData.insertDecretoPages();
+
+            }catch(MongoException e){
+                System.out.println(e.getMessage());
+            }
+
+        }
+
+        DecretosChacoDatabase.updateLastDate(decretoInfo.get(3));
     }
 }
